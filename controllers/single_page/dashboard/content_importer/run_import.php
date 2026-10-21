@@ -98,7 +98,7 @@ class RunImport extends DashboardPageController
         }
 
         $page = Page::getByID($_GET['pageCID']);
-        if (!is_object($page) || $page->isError()) {
+        if ($page->isError()) {
             $this->flash('error', t('Page not found.'));
             $this->buildRedirect('/dashboard/content_importer/run_import')->send();
         }
@@ -161,7 +161,7 @@ class RunImport extends DashboardPageController
         $post = $this->post();
 
         $parentPage = Page::getByID((int) ($post['pageCID'] ?? 0));
-        if (!is_object($parentPage) || $parentPage->isError()) {
+        if ($parentPage->isError()) {
             return $this->failImport(t('Page not found.'));
         }
 

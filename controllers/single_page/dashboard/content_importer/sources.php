@@ -82,7 +82,7 @@ class Sources extends DashboardPageController
         }
 
         $parent = Page::getByID($source->getParentPageID());
-        $parentExists = is_object($parent) && !$parent->isError();
+        $parentExists = !$parent->isError();
         if (!$parentExists) {
             $this->error->add(t('Please choose the page the articles are created under.'));
         }

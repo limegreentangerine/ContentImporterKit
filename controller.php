@@ -39,7 +39,6 @@ class Controller extends PackageController
      * Override this value according to the minimum required version for your package.
      *
      * @var string
-     * @var string
      */
     protected $phpVersionRequired = '8.4';
 
