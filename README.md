@@ -30,6 +30,15 @@ Open **Dashboard > Content Importer > Sources** and add a source:
   articles to import per run. The newest come first, so a large archive is
   imported over several runs.
 
+Before a source runs, click **Preview** on its row to see what a run would do.
+Each of the newest 20 articles is listed as one that would be created, updated,
+left alone or would fail (with the reason), together with how many are already
+up to date, are not articles, or are held back by the per-run limit. A preview
+fetches the sitemap and the article pages, but creates no pages or images and
+records nothing in the Activity page. It cannot see that a page was deleted in
+Concrete, or that an unrelated page already sits at an article's address, so a
+real run can still differ in those two cases.
+
 Sources are imported by the **Import News Sources** task (Dashboard > System &
 Settings > Automation, or `concrete task:import-news-sources` on the command
 line). It can be scheduled. One queue message is created per article, so one bad

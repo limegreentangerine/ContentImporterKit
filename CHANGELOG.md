@@ -2,7 +2,10 @@
 
 Notable changes to this project are documented here.
 
-## Unreleased
+## 1.0.0 - 2026-10-21
+
+First stable release. Upgrading from 0.2.0 needs no database changes; clear the
+cache afterwards.
 
 ### Added
 
