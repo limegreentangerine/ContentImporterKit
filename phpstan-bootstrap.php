@@ -25,6 +25,19 @@ if (!class_exists('File', false)) {
     class_alias(Concrete\Core\File\File::class, 'File');
 }
 
+$coreAliases = [
+    'Page' => Concrete\Core\Page\Page::class,
+    'PageType' => Concrete\Core\Page\Type\Type::class,
+    'PageTemplate' => Concrete\Core\Page\Template::class,
+    'Permissions' => Concrete\Core\Permission\Checker::class,
+    'Config' => Concrete\Core\Support\Facade\Config::class,
+];
+foreach ($coreAliases as $alias => $class) {
+    if (!class_exists($alias, false)) {
+        class_alias($class, $alias);
+    }
+}
+
 if (!class_exists('Events', false)) {
     class Events
     {

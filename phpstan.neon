@@ -3,5 +3,20 @@ parameters:
     - phpstan-bootstrap.php
   level: 4
   paths:
+    - controller.php
+    - controllers
     - src
     - tests
+  ignoreErrors:
+    -
+      message: '#^Call to an undefined static method Concrete\\Core\\Attribute\\Key\\Category::getByHandle\(\)\.$#'
+      identifier: staticMethod.notFound
+      path: controllers
+    -
+      message: '#^Call to an undefined method Concrete\\Core\\Permission\\Checker::canAddSubCollection\(\)\.$#'
+      identifier: method.notFound
+      path: controllers
+    -
+      message: '#^Call to an undefined static method Concrete\\Core\\Support\\Facade\\Config::(get|save)\(\)\.$#'
+      identifier: staticMethod.notFound
+      path: controller.php
