@@ -6,11 +6,15 @@ use Page;
 use PageType;
 use Permissions;
 use PageTemplate;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Concrete\Core\Attribute\Key\Category;
 use ContentImporterKit\Entity\ImportedItem;
 use ContentImporterKit\Entity\ImportSource;
+use ContentImporterKit\Scrape\FetchException;
+use ContentImporterKit\Scrape\ScrapeException;
 use ContentImporterKit\Scrape\InvalidSourceException;
+use ContentImporterKit\Scrape\ArticleImporterFactory;
 use Concrete\Core\Page\Controller\DashboardPageController;
 
 class Sources extends DashboardPageController
@@ -202,6 +206,39 @@ class Sources extends DashboardPageController
         $this->flash('success', t('Source saved.'));
 
         return $this->buildRedirect('/dashboard/content_importer/sources');
+    }
+
+    /**
+     * Shows what a run of the source would do, without changing anything. It is a POST because it fetches pages.
+     */
+    public function preview($id = null)
+    {
+        if (!$this->request->isMethod('POST') || !$this->token->validate('content_importer_preview_source')) {
+            $this->flash('error', $this->token->getErrorMessage());
+
+            return $this->buildRedirect('/dashboard/content_importer/sources');
+        }
+
+        $source = $this->entityManager()->find(ImportSource::class, (int) $id);
+        if (!$source instanceof ImportSource) {
+            $this->flash('error', t('Source not found.'));
+
+            return $this->buildRedirect('/dashboard/content_importer/sources');
+        }
+
+        set_time_limit(120);
+
+        try {
+            $report = (new ArticleImporterFactory($this->app))->preview($source)->run($source->toSourceConfig(), new DateTimeImmutable());
+        } catch (FetchException|ScrapeException|InvalidSourceException $e) {
+            $this->flash('error', t('The preview could not be made: %s', $e->getMessage()));
+
+            return $this->buildRedirect('/dashboard/content_importer/sources');
+        }
+
+        $this->set('previewSource', $source);
+        $this->set('previewReport', $report);
+        $this->view();
     }
 
     public function delete($id = null)

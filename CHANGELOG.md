@@ -18,6 +18,9 @@ Notable changes to this project are documented here.
   in Dashboard > Content Importer > Sources, imported by the "Import News
   Sources" task (one queue message per article), and every article is recorded
   in the Activity page. New tables `ciSources` and `ciItems`; version 0.1.0.
+- Preview for a source (Sources > Preview): shows whether a run would create,
+  update, skip or fail each of the newest 20 articles. It fetches the sitemap
+  and article pages but creates no pages or images and records no history.
 - An "Ignore these pages" list per source (slugs, `*` as a wildcard), so index
   and category pages that a sitemap lists are not imported as articles. Needs
   the 0.2.0 upgrade (a new `excludedSlugs` column); clear the cache afterwards.

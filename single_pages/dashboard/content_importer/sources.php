@@ -137,6 +137,47 @@ if (isset($source)) {
     <?php echo t('Sources are imported by the "Import News Sources" task. Run it, or schedule it, from Dashboard > System &amp; Settings > Automation.'); ?>
 </p>
 
+<?php if (isset($previewReport, $previewSource)) {
+    $actions = [
+        'imported' => [t('Would be created'), 'label-success'],
+        'updated' => [t('Would be updated'), 'label-info'],
+        'unchanged' => [t('No change'), 'label-default'],
+        'failed' => [t('Would fail'), 'label-danger'],
+    ];
+    ?>
+    <div class="alert alert-info">
+        <strong><?php echo t('Preview of "%s". Nothing was created, changed or saved.', h($previewSource->getName())); ?></strong>
+        <?php echo t('%1$s already up to date, %2$s not articles or too old, %3$s left for later runs by the per-run limit.', $previewReport->upToDate, $previewReport->notEligible, $previewReport->beyondLimit); ?>
+        <?php if ($previewReport->notChecked > 0) { ?>
+            <?php echo t('Only the newest %1$s of the articles that would be imported are checked here; %2$s more are not shown.', count($previewReport->rows), $previewReport->notChecked); ?>
+        <?php } ?>
+    </div>
+    <?php if (count($previewReport->rows) === 0) { ?>
+        <p><?php echo t('A run now would import nothing.'); ?></p>
+    <?php } else { ?>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th><?php echo t('Article'); ?></th>
+                    <th><?php echo t('A run now would'); ?></th>
+                    <th><?php echo t('Reason'); ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($previewReport->rows as $row) {
+                    [$actionLabel, $actionClass] = $actions[$row->outcome->value]; ?>
+                    <tr>
+                        <td><code><?php echo h($row->entry->slug); ?></code></td>
+                        <td><span class="label <?php echo h($actionClass); ?>"><?php echo h($actionLabel); ?></span></td>
+                        <td><?php echo h((string) $row->error); ?></td>
+                    </tr>
+                <?php } ?>
+            </tbody>
+        </table>
+    <?php } ?>
+    <hr>
+<?php } ?>
+
 <?php if (count($sources) === 0) { ?>
     <p><?php echo t('No sources yet. Add one to start importing articles from a site.'); ?></p>
 <?php } else { ?>
@@ -172,6 +213,10 @@ if (isset($source)) {
                         <?php } ?>
                     </td>
                     <td class="text-right">
+                        <form method="post" action="<?php echo h($view->action('preview', $item->getID())); ?>" style="display: inline-block">
+                            <?php echo $token->output('content_importer_preview_source'); ?>
+                            <button type="submit" class="btn btn-default btn-sm"><?php echo t('Preview'); ?></button>
+                        </form>
                         <a href="<?php echo h($view->action('edit', $item->getID())); ?>" class="btn btn-default btn-sm"><?php echo t('Edit'); ?></a>
                         <form method="post" action="<?php echo h($view->action('delete', $item->getID())); ?>" style="display: inline-block" onsubmit="return confirm('<?php echo h(t('Delete this source and its history? The pages it created are kept.')); ?>')">
                             <?php echo $token->output('content_importer_delete_source'); ?>

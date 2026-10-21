@@ -10,6 +10,7 @@ use Psr\Log\LoggerInterface;
 use GuzzleHttp\ClientInterface;
 use Concrete\Core\File\Importer;
 use ContentImporterKit\Import\Sanitiser;
+use ContentImporterKit\Import\PreviewPublisher;
 use Doctrine\ORM\EntityManagerInterface;
 use ContentImporterKit\Security\UrlGuard;
 use Concrete\Core\Application\Application;
@@ -90,6 +91,28 @@ final class ArticleImporterFactory
             $source->toPublishTarget(),
             $this->logger(),
         );
+    }
+
+    /**
+     * A preview of what a run of the source would do. It reads the source's history but changes nothing: no pages,
+     * no images and no history.
+     */
+    public function preview(ImportSource $source): SourcePreview
+    {
+        $store = $this->store($source);
+        $previewStore = new PreviewStore($store);
+        $importer = new ArticleImporter(
+            $this->fetcher(),
+            new ArticleParser(),
+            $this->sanitiser(),
+            new PreviewPublisher(),
+            $previewStore,
+            $source->toSourceConfig(),
+            $source->toPublishTarget(),
+            $this->logger(),
+        );
+
+        return new SourcePreview(new ArticlePlanner($this->fetcher(), new SitemapReader(), $store), $importer, $previewStore);
     }
 
     /**
