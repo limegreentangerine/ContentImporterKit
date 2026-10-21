@@ -3,5 +3,7 @@ parameters:
     - phpstan-bootstrap.php
   level: 4
   paths:
+    - controller.php
+    - controllers
     - src
     - tests

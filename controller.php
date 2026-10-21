@@ -1,11 +1,15 @@
 <?php
 
-namespace Concrete\Package\ComposerPackage;
+namespace Concrete\Package\ContentImporterKit;
 
-use Concrete\Core\Package\Package;
+use Concrete\Core\Entity\Package;
+use ClassKit\Package\PackageController;
+use ClassKit\Package\Traits\{BlockTrait, PageTrait};
 
-class Controller extends Package
+class Controller extends PackageController
 {
+    use BlockTrait;
+    use PageTrait;
     /**
      * The packages handle.
      * Note that this must be unique in the
@@ -13,14 +17,14 @@ class Controller extends Package
      *
      * @var string
      */
-    protected $pkgHandle = 'composer_package';
+    protected $pkgHandle = 'content_importer_kit';
 
     /**
      * The packages version.
      *
      * @var string
      */
-    protected $pkgVersion = '0.0.0';
+    protected $pkgVersion = '0.2.0';
 
     /**
      * The minimum Concrete version compatible with the package.
@@ -83,7 +87,7 @@ class Controller extends Package
      * @var array
      */
     protected $pkgAutoloaderRegistries = [
-        'src' => '\ComposerPackage',
+        'src' => '\ContentImporterKit',
     ];
 
     /**
@@ -93,15 +97,55 @@ class Controller extends Package
      *
      * @var array
      */
-    protected $tasks = [];
+    protected $tasks = [
+        'import_sources' => \ContentImporterKit\Command\Task\Controller\ImportSourcesController::class,
+    ];
 
     public function getPackageName()
     {
-        return t('composer_name');
+        return t('Content Importer');
     }
 
     public function getPackageDescription()
     {
-        return t('composer_description');
+        return t('Content Importer');
     }
+
+    public function installOrUpgrade(Package $pkg)
+    {
+        // Add scheduled tasks
+        $this->installContentFile('tasks.xml');
+
+        // Add dashboard pages
+        $this->addSinglePage('/dashboard/content_importer', $pkg, t('Content Importer'));
+        $this->addSinglePage('/dashboard/content_importer/sources', $pkg, t('Sources'), t('Sites the importer scrapes'));
+        $this->addSinglePage('/dashboard/content_importer/activity', $pkg, t('Activity'), t('What the importer did with each article'));
+        $this->addSinglePage('/dashboard/content_importer/run_import', $pkg, t('Import From File'));
+
+        // add json as allowed file type
+        $helper_file = \Core::make('helper/concrete/file');
+        $file_access_file_types = $helper_file->unserializeUploadFileExtensions(\Config::get('concrete.upload.extensions'));
+        if (!in_array('json', $file_access_file_types)) {
+            $file_access_file_types[] = 'json';
+            $types = $helper_file->serializeUploadFileExtensions($file_access_file_types);
+            \Config::save('concrete.upload.extensions', $types);
+        }
+    }
+
+    public function on_start()
+    {
+        // A package installed by path or symlink has its own vendor folder that the site does not autoload. Only
+        // HTMLPurifier's own loader is included: the package's full vendor/autoload.php also contains the
+        // development copy of concrete5/core, which must never shadow the site's core.
+        $purifierLoader = __DIR__ . '/vendor/ezyang/htmlpurifier/library/HTMLPurifier.auto.php';
+        if (!class_exists('HTMLPurifier_Config', false) && is_file($purifierLoader)) {
+            require_once $purifierLoader;
+        }
+
+        parent::on_start();
+    }
+
+    public function registerRoutes(): void {}
+
+    public function registerEvents(): void {}
 }

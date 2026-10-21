@@ -1,26 +1,24 @@
 {
-	"name": "composer_package",
+	"name": "content_importer_kit",
 	"version": "1.0.0",
-	"description": "",
-	"main": "index.js",
+	"description": "Content Importer package tooling",
+	"private": true,
 	"directories": {
 		"test": "tests"
 	},
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1"
 	},
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/limegreentangerine/composer_package.git"
-	},
 	"keywords": [],
-	"author": "",
-	"license": "ISC",
+	"author": "Dave Hendy <david@limegreentangerine.co.uk>",
+	"contributors": [
+		{
+			"name": "Lee Jones",
+			"email": "prolific.jones82@gmail.com"
+		}
+	],
+	"license": "UNLICENSED",
 	"type": "commonjs",
-	"bugs": {
-		"url": "https://github.com/limegreentangerine/composer_package/issues"
-	},
-	"homepage": "https://github.com/limegreentangerine/composer_package#readme",
 	"devDependencies": {
 		"prettier": "^3.9.6"
 	}
