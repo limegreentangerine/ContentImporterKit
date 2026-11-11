@@ -2,6 +2,15 @@
 
 Notable changes to this project are documented here.
 
+## 1.2.1 - 2026-11-11
+
+Documentation only. No database changes.
+
+### Changed
+
+- The README documents sources with several languages: the Other languages setting, how translations are imported
+  and linked, and the preview columns.
+
 ## 1.2.0 - 2026-11-11
 
 Changes the items table (new `hreflang` column, and the unique key now includes it); run `c5:package:update`, then
