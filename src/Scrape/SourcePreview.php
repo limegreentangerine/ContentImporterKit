@@ -23,6 +23,23 @@ final class SourcePreview
     ) {}
 
     /**
+     * How many of an article's translations have a page already (a real run links to them) and how many do not yet.
+     *
+     * @return array{int, int}
+     */
+    private function translations(SitemapEntry $entry): array
+    {
+        $now = 0;
+        foreach ($entry->alternates as $url) {
+            if ($this->store->findByUrl($url)?->pageID !== null) {
+                ++$now;
+            }
+        }
+
+        return [$now, count($entry->alternates) - $now];
+    }
+
+    /**
      * @throws FetchException|ScrapeException when the sitemap can not be fetched or read
      */
     public function run(SourceConfig $config, DateTimeImmutable $now): PreviewReport
@@ -34,7 +51,8 @@ final class SourcePreview
         foreach ($checked as $entry) {
             $outcome = $this->importer->import($entry);
             $error = $outcome === ImportOutcome::Failed ? $this->store->saved($entry->slug, $entry->hreflang)?->error : null;
-            $rows[] = new PreviewRow($entry, $outcome, $error);
+            [$linksNow, $later] = $outcome === ImportOutcome::Failed ? [0, 0] : $this->translations($entry);
+            $rows[] = new PreviewRow($entry, $outcome, $error, $linksNow, $later);
         }
 
         return new PreviewReport($rows, count($plan->entries) - count($checked), $plan->upToDate, $plan->notEligible, $plan->beyondLimit);

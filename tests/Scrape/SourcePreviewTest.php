@@ -12,19 +12,19 @@ use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\TestCase;
 use GuzzleHttp\Handler\MockHandler;
 use ContentImporterKit\Scrape\Fetcher;
-use ContentImporterKit\Scrape\ItemState;
 use ContentImporterKit\Import\Sanitiser;
+use ContentImporterKit\Scrape\ItemState;
 use ContentImporterKit\Security\UrlGuard;
 use ContentImporterKit\Scrape\PreviewStore;
 use ContentImporterKit\Scrape\SourceConfig;
-use ContentImporterKit\Scrape\SitemapReader;
 use ContentImporterKit\Import\PublishTarget;
 use ContentImporterKit\Scrape\ArticleParser;
 use ContentImporterKit\Scrape\ImportOutcome;
+use ContentImporterKit\Scrape\SitemapReader;
 use ContentImporterKit\Scrape\SourcePreview;
 use ContentImporterKit\Scrape\ArticlePlanner;
-use ContentImporterKit\Import\PreviewPublisher;
 use ContentImporterKit\Scrape\ArticleImporter;
+use ContentImporterKit\Import\PreviewPublisher;
 use ContentImporterKit\Tests\Scrape\Support\FakeStore;
 use ContentImporterKit\Tests\Scrape\Support\FakeLogger;
 
@@ -32,11 +32,16 @@ final class SourcePreviewTest extends TestCase
 {
     private const NOW = '2025-04-10T12:00:00+00:00';
 
+    private const LANGUAGES = ['locales' => 'en-gb | en_GB | 9 | https://adferiad.org/en/'];
+
     private FakeStore $store;
 
-    private static function config(): SourceConfig
+    /**
+     * @param array<string, mixed> $overrides
+     */
+    private static function config(array $overrides = []): SourceConfig
     {
-        return SourceConfig::fromArray([
+        return SourceConfig::fromArray($overrides + [
             'newsUrl' => 'https://adferiad.org/cym/',
             'sitemapUrl' => 'https://adferiad.org/cym/post-sitemap.xml',
             'titleSelector' => 'h1',
@@ -60,7 +65,7 @@ final class SourcePreviewTest extends TestCase
     /**
      * @param list<Response> $responses the sitemap first, then one answer per article that is fetched
      */
-    private function preview(array $responses): SourcePreview
+    private function preview(array $responses, ?SourceConfig $config = null): SourcePreview
     {
         $guard = new UrlGuard([80, 443], Closure::fromCallable(static fn(string $host): array => $host === 'adferiad.org' ? ['93.184.216.34'] : []));
         $fetcher = new Fetcher(new Client(['handler' => HandlerStack::create(new MockHandler($responses))]), $guard);
@@ -74,7 +79,7 @@ final class SourcePreviewTest extends TestCase
                 new Sanitiser(),
                 new PreviewPublisher(),
                 $previewStore,
-                self::config(),
+                $config ?? self::config(),
                 new PublishTarget(1, 'page', 'full', 'Main'),
                 new FakeLogger(),
             ),
@@ -87,9 +92,11 @@ final class SourcePreviewTest extends TestCase
         return (string) file_get_contents(__DIR__ . '/../fixtures/article.html');
     }
 
-    protected function setUp(): void
+    private static function twoLanguageSitemap(): string
     {
-        $this->store = new FakeStore();
+        return '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">'
+            . '<url><loc>https://adferiad.org/en/news/</loc><lastmod>2025-03-01T00:00:00+00:00</lastmod>'
+            . '<xhtml:link rel="alternate" hreflang="cy-gb" href="https://adferiad.org/cym/newyddion/"/></url></urlset>';
     }
 
     public function testANewArticleWouldBeCreatedAndNothingIsRemembered(): void
@@ -161,5 +168,40 @@ final class SourcePreviewTest extends TestCase
 
         self::assertSame(1, $report->upToDate);
         self::assertCount(1, $report->rows);
+    }
+
+    public function testTheLanguageAndTheTranslationsAPageWouldBeLinkedToAreReported(): void
+    {
+        $this->store->save(new ItemState('newyddion', 'https://adferiad.org/cym/newyddion/', 5, null, null, new DateTimeImmutable('2025-01-01T00:00:00+00:00'), 'h', 'imported'));
+        $before = $this->store->items;
+        $config = self::config(self::LANGUAGES);
+
+        $report = $this->preview([
+            new Response(200, [], self::twoLanguageSitemap()),
+            new Response(200, [], self::html()),
+        ], $config)->run($config, new DateTimeImmutable(self::NOW));
+
+        self::assertSame('en-gb', $report->rows[0]->entry->hreflang);
+        self::assertSame(1, $report->rows[0]->linksNow);
+        self::assertSame(0, $report->rows[0]->translationsLater);
+        self::assertEquals($before, $this->store->items, 'a preview links nothing and remembers nothing');
+    }
+
+    public function testATranslationThatIsNotImportedYetIsReportedAsComingLater(): void
+    {
+        $config = self::config(self::LANGUAGES);
+
+        $report = $this->preview([
+            new Response(200, [], self::twoLanguageSitemap()),
+            new Response(200, [], self::html()),
+        ], $config)->run($config, new DateTimeImmutable(self::NOW));
+
+        self::assertSame(0, $report->rows[0]->linksNow);
+        self::assertSame(1, $report->rows[0]->translationsLater);
+    }
+
+    protected function setUp(): void
+    {
+        $this->store = new FakeStore();
     }
 }

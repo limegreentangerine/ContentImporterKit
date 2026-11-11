@@ -150,6 +150,7 @@ if (isset($source)) {
         'unchanged' => [t('No change'), 'label-default'],
         'failed' => [t('Would fail'), 'label-danger'],
     ];
+    $multilingual = $previewSource->getLocales() !== null && trim($previewSource->getLocales()) !== '';
     ?>
     <div class="alert alert-info">
         <strong><?php echo t('Preview of "%s". Nothing was created, changed or saved.', h($previewSource->getName())); ?></strong>
@@ -165,7 +166,13 @@ if (isset($source)) {
             <thead>
                 <tr>
                     <th><?php echo t('Article'); ?></th>
+                    <?php if ($multilingual) { ?>
+                        <th><?php echo t('Language'); ?></th>
+                    <?php } ?>
                     <th><?php echo t('A run now would'); ?></th>
+                    <?php if ($multilingual) { ?>
+                        <th><?php echo t('Translations'); ?></th>
+                    <?php } ?>
                     <th><?php echo t('Reason'); ?></th>
                 </tr>
             </thead>
@@ -174,7 +181,23 @@ if (isset($source)) {
                     [$actionLabel, $actionClass] = $actions[$row->outcome->value]; ?>
                     <tr>
                         <td><code><?php echo h($row->entry->slug); ?></code></td>
+                        <?php if ($multilingual) { ?>
+                            <td><?php echo h($row->entry->hreflang ?? t('Main language')); ?></td>
+                        <?php } ?>
                         <td><span class="label <?php echo h($actionClass); ?>"><?php echo h($actionLabel); ?></span></td>
+                        <?php if ($multilingual) { ?>
+                            <td>
+                                <?php if ($row->linksNow > 0) { ?>
+                                    <?php echo t2('Linked to %d page already imported', 'Linked to %d pages already imported', $row->linksNow); ?>
+                                <?php } ?>
+                                <?php if ($row->translationsLater > 0) { ?>
+                                    <?php echo t2('%d not imported yet: linked when it arrives', '%d not imported yet: linked when they arrive', $row->translationsLater); ?>
+                                <?php } ?>
+                                <?php if ($row->linksNow === 0 && $row->translationsLater === 0) { ?>
+                                    <?php echo t('None listed in the sitemap'); ?>
+                                <?php } ?>
+                            </td>
+                        <?php } ?>
                         <td><?php echo h((string) $row->error); ?></td>
                     </tr>
                 <?php } ?>

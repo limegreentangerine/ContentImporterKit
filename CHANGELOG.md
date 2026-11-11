@@ -13,6 +13,8 @@ clear the cache. Existing items keep an empty language, which means the source's
   to the pages its translations already have, using Concrete's Multilingual relations. A translation that is not
   imported yet is not waited for: it links itself when it arrives. A failed link is logged and does not fail the
   article. The per-run limit counts each language of an article separately.
+- The preview of a source with several languages shows each article's language and the translations it would be
+  linked to (already imported) or would be linked to later (not imported yet). It still links nothing.
 - The Sources form checks that each language's parent page is inside that locale's section.
 
 ## 1.1.0 - unreleased
