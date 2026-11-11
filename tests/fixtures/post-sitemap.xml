@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://adferiad.org/cym/</loc><lastmod>2025-03-01T10:00:00+00:00</lastmod></url>
+  <url><loc>https://adferiad.org/cym/adferiad-yn-cyhoeddi-ymgyrch</loc><lastmod>2025-03-14T16:11:16+00:00</lastmod></url>
+  <url><loc>https://adferiad.org/cym/2024/11/05/dated-permalink-post/</loc><lastmod>2024-11-05T09:00:00+00:00</lastmod></url>
+  <url><loc>https://adferiad.org/cym/old-post/</loc><lastmod>2023-01-01T00:00:00+00:00</lastmod></url>
+  <url><loc>https://adferiad.org/cym/no-lastmod</loc></url>
+  <url><loc>https://adferiad.org/cym/bad-date</loc><lastmod>not a date</lastmod></url>
+  <url><loc>https://adferiad.org/cym/adferiad-yn-cyhoeddi-ymgyrch/?utm_source=x</loc></url>
+  <url><loc>https://adferiad.org/cym/UPPER-Case</loc></url>
+  <url><loc>https://adferiad.org/cym/%C5%B5yl-post</loc></url>
+  <url><loc>https://adferiad.org/cym/a/b/c</loc></url>
+  <url><loc>https://adferiad.org/cym/../../etc/passwd</loc></url>
+  <url><loc>https://evil.example/cym/offsite-post</loc></url>
+  <url><loc>https://adferiad.org/other/page</loc></url>
+  <url><loc>https://adferiad.org.evil.example/cym/lookalike-host</loc></url>
+  <url><loc></loc></url>
+</urlset>

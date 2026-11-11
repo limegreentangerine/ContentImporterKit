@@ -1,22 +1,32 @@
 {
-	"name": "limegreentangerine/composer_package",
-	"description": "composer_description",
+	"name": "limegreentangerine/content_importer_kit",
+	"description": "Content Importer",
 	"type": "concrete5-package",
 	"license": "proprietary",
 	"minimum-stability": "stable",
 	"autoload": {
 		"psr-4": {
-			"ComposerPackage\\": "src/"
+			"ContentImporterKit\\": "src/"
 		}
 	},
 	"autoload-dev": {
 		"psr-4": {
-			"ComposerPackage\\Tests\\": "tests/"
+			"ContentImporterKit\\Tests\\": "tests/"
 		}
 	},
-	"authors": [],
+	"authors": [
+		{
+			"name": "Dave Hendy",
+			"email": "david@limegreentangerine.co.uk"
+		},
+		{
+			"name": "Lee Jones",
+			"email": "prolific.jones82@gmail.com"
+		}
+	],
 	"require": {
-		"limegreentangerine/class_kit": "^1.0"
+		"limegreentangerine/class_kit": "^1.0 || ^2.0",
+		"ezyang/htmlpurifier": "^4.19"
 	},
 	"require-dev": {
 		"php": "^8.4",

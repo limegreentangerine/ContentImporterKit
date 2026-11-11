@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<concrete5-cif version="1.0">
+    <tasks>
+        <task handle="import_sources" package="content_importer_kit" />
+    </tasks>
+
+    <tasksets>
+        <taskset handle="content_importer_kit" name="Content Importer">
+            <task handle="import_sources" />
+        </taskset>
+    </tasksets>
+</concrete5-cif>
