@@ -2,7 +2,7 @@
 
 Notable changes to this project are documented here.
 
-## 1.2.0 - unreleased
+## 1.2.0 - 2026-11-11
 
 Changes the items table (new `hreflang` column, and the unique key now includes it); run `c5:package:update`, then
 clear the cache. Existing items keep an empty language, which means the source's own.
@@ -17,7 +17,7 @@ clear the cache. Existing items keep an empty language, which means the source's
   linked to (already imported) or would be linked to later (not imported yet). It still links nothing.
 - The Sources form checks that each language's parent page is inside that locale's section.
 
-## 1.1.0 - unreleased
+## 1.1.0 - 2026-11-11
 
 Adds a column to the sources table (`locales`); run `c5:package:update`, then clear the cache. Nothing is imported
 in other languages yet: this is the groundwork.
