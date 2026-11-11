@@ -29,6 +29,7 @@ Open **Dashboard > Content Importer > Sources** and add a source:
 - **Limits** (optional): only articles changed in the last N days, and the most
   articles to import per run. The newest come first, so a large archive is
   imported over several runs.
+- **Other languages** (optional): see [Sites in several languages](#sites-in-several-languages).
 
 Before a source runs, click **Preview** on its row to see what a run would do.
 Each of the newest 20 articles is listed as one that would be created, updated,
@@ -37,7 +38,44 @@ up to date, are not articles, or are held back by the per-run limit. A preview
 fetches the sitemap and the article pages, but creates no pages or images and
 records nothing in the Activity page. It cannot see that a page was deleted in
 Concrete, or that an unrelated page already sits at an article's address, so a
-real run can still differ in those two cases.
+real run can still differ in those two cases. For a source with other languages
+the table also shows each article's language and its translations (see below).
+
+### Sites in several languages
+
+A site that publishes the same articles in several languages can be imported
+into a Concrete site that uses **Multilingual**, with each translation linked to
+the page it translates, so the language switcher works.
+
+The source's own settings (News URL, parent page and so on) describe its main
+language. Add the other languages in **Other languages**, one per line:
+
+```
+cy-gb | cy_GB | 402 | https://example.org/cy/diweddaraf/
+fr    | fr_FR | 510 | https://example.org/fr/actualites/
+```
+
+The four parts are the language code the sitemap uses (`hreflang`), the Concrete
+locale, the ID of the page that language's articles are created under, and the
+news address of that language. The news address must be on the same host as the
+main News URL, and the parent page must be inside that locale's section of the
+site; the form checks both, and that you may add pages there.
+
+- The sitemap must list the translations of each article with
+  `<xhtml:link rel="alternate" hreflang="..." href="..."/>`. The same slug in
+  two languages is two articles.
+- Every language is imported separately and goes under its own parent page. The
+  per-run limit counts each language of an article as one article.
+- When an article is imported, it is linked to the translations that are already
+  imported. A translation that is not imported yet (held back by the limit, or
+  failed) is not waited for: it links itself when it arrives. A link that fails
+  is logged and does not fail the article.
+- Translations are paired only through the sitemap's alternates. An article whose
+  translation the sitemap does not declare (in both directions) is imported but
+  not linked.
+- The preview shows each article's language, and whether its translations are
+  already imported (it would be linked to them) or not yet (linked when they
+  arrive). It links nothing.
 
 Sources are imported by the **Import News Sources** task (Dashboard > System &
 Settings > Automation, or `concrete task:import-news-sources` on the command
