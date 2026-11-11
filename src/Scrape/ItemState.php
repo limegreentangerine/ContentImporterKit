@@ -22,7 +22,22 @@ final class ItemState
         public ?string $contentHash = null,
         public string $status = 'new',
         public ?string $error = null,
+        public ?string $hreflang = null,
     ) {}
+
+    /**
+     * What a store identifies the article by: the same slug can exist in more than one language. Articles in the
+     * source's own language keep the plain slug.
+     */
+    public function key(): string
+    {
+        return self::keyOf($this->slug, $this->hreflang);
+    }
+
+    public static function keyOf(string $slug, ?string $hreflang): string
+    {
+        return ($hreflang ?? '') === '' ? $slug : $hreflang . '|' . $slug;
+    }
 
     /**
      * Whether this article was imported from the very version of the page the sitemap lists now, so there is nothing

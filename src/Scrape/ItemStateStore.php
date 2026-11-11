@@ -9,7 +9,15 @@ namespace ContentImporterKit\Scrape;
  */
 interface ItemStateStore
 {
-    public function find(string $slug): ?ItemState;
+    /**
+     * @param string|null $hreflang the article's language; null for the source's own
+     */
+    public function find(string $slug, ?string $hreflang = null): ?ItemState;
+
+    /**
+     * The article that was fetched from this address, in any language. Used to find the translations of an article.
+     */
+    public function findByUrl(string $url): ?ItemState;
 
     public function save(ItemState $state): void;
 }

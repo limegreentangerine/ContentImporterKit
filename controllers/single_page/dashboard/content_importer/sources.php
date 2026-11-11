@@ -13,6 +13,7 @@ use ContentImporterKit\Entity\ImportedItem;
 use ContentImporterKit\Entity\ImportSource;
 use ContentImporterKit\Scrape\FetchException;
 use ContentImporterKit\Scrape\ScrapeException;
+use Concrete\Core\Multilingual\Page\Section\Section;
 use ContentImporterKit\Scrape\ArticleImporterFactory;
 use ContentImporterKit\Scrape\InvalidSourceException;
 use Concrete\Core\Page\Controller\DashboardPageController;
@@ -105,8 +106,15 @@ class Sources extends DashboardPageController
         // Every language's parent is checked the same way, for the same reason.
         foreach ($locales as $locale) {
             $localeParent = Page::getByID($locale->parentPageID);
-            if ($localeParent->isError() || !is_object($pageType) || !(new Permissions($localeParent))->canAddSubCollection($pageType)) {
-                $this->error->add(t('The page for "%s" does not exist, or you do not have permission to add pages of this type under it.', $locale->hreflang));
+            // The pages are linked as translations by the language section they are in, so it has to be the right one.
+            $section = $localeParent->isError() ? null : Section::getBySectionOfSite($localeParent);
+            if (!$section instanceof Section || $section->getLocale() !== $locale->locale) {
+                $this->error->add(t('The page for "%1$s" must be inside the "%2$s" section of a multilingual site.', $locale->hreflang, $locale->locale));
+
+                continue;
+            }
+            if (!is_object($pageType) || !(new Permissions($localeParent))->canAddSubCollection($pageType)) {
+                $this->error->add(t('You do not have permission to add pages of this type under the page for "%s".', $locale->hreflang));
             }
         }
         if (!is_object(PageTemplate::getByHandle($source->getPageTemplateHandle()))) {

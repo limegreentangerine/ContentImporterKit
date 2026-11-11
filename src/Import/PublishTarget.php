@@ -19,4 +19,12 @@ final readonly class PublishTarget
         public string $areaName,
         public array $attributeMap = [],
     ) {}
+
+    /**
+     * The same target for another language: only the parent page differs.
+     */
+    public function withParent(int $parentPageID): self
+    {
+        return new self($parentPageID, $this->pageTypeHandle, $this->pageTemplateHandle, $this->areaName, $this->attributeMap);
+    }
 }

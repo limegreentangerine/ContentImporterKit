@@ -13,6 +13,7 @@ use ContentImporterKit\Import\PublishTarget;
 use ContentImporterKit\Import\ArticlePublisher;
 use ContentImporterKit\Import\PublishException;
 use ContentImporterKit\Import\SanitisedArticle;
+use ContentImporterKit\Import\TranslationLinker;
 use ContentImporterKit\Import\InvalidArticleException;
 use ContentImporterKit\Import\PageAlreadyExistsException;
 use ContentImporterKit\Import\PublishedPageMissingException;
@@ -24,6 +25,10 @@ use ContentImporterKit\Import\PublishedPageMissingException;
  *  - the sitemap says the article has not changed since the last import: no request at all;
  *  - the server answers a conditional request with 304: nothing is parsed;
  *  - the cleaned article is identical to the last import: the page is not touched.
+ *
+ * An article in another language goes under the parent page of that language, and once it has a page it is linked to
+ * the pages its translations already have. A translation that has not been imported yet is not waited for: it links
+ * itself when it arrives.
  *
  * A problem with one article is recorded on its ItemState and reported as ImportOutcome::Failed. It never stops the
  * run, so one bad page can not hold up the others.
@@ -44,7 +49,51 @@ final class ArticleImporter
         private readonly SourceConfig $config,
         private readonly PublishTarget $target,
         private readonly LoggerInterface $logger,
+        private readonly ?TranslationLinker $linker = null,
     ) {}
+
+    /**
+     * @throws PublishException when the source has no such language
+     */
+    private function targetFor(?string $hreflang): PublishTarget
+    {
+        if ($hreflang === null) {
+            return $this->target;
+        }
+        foreach ($this->config->locales as $locale) {
+            if ($locale->hreflang === $hreflang) {
+                return $this->target->withParent($locale->parentPageID);
+            }
+        }
+
+        throw new PublishException(sprintf('The source has no language "%s".', $hreflang));
+    }
+
+    /**
+     * Links the page to the pages of its translations that are already imported. A problem here is logged and does
+     * not fail the article: the page is fine, only the link is missing.
+     */
+    private function link(SitemapEntry $entry, int $pageID): void
+    {
+        if ($this->linker === null || $entry->alternates === [] || $pageID <= 0) {
+            return;
+        }
+
+        try {
+            $translations = [];
+            foreach ($entry->alternates as $url) {
+                $translation = $this->store->findByUrl($url)?->pageID;
+                if ($translation !== null) {
+                    $translations[] = $translation;
+                }
+            }
+            if ($translations !== []) {
+                $this->linker->link($pageID, $translations);
+            }
+        } catch (Throwable $e) {
+            $this->logger->warning(sprintf('Page %d was not linked to its translations: %s', $pageID, $e->getMessage()), ['exception' => $e]);
+        }
+    }
 
     private function run(ItemState $state, SitemapEntry $entry): ImportOutcome
     {
@@ -80,7 +129,7 @@ final class ArticleImporter
         $this->timings['parse'] = microtime(true) - $started;
 
         $started = microtime(true);
-        $result = $this->publish($article, $state);
+        $result = $this->publish($article, $state, $this->targetFor($entry->hreflang));
         $this->timings['publish'] = microtime(true) - $started;
 
         $state->pageID = $result->pageID;
@@ -91,19 +140,20 @@ final class ArticleImporter
         $state->status = $result->created ? 'imported' : 'updated';
         $state->error = null;
         $this->store->save($state);
+        $this->link($entry, $result->pageID);
 
         return $result->created ? ImportOutcome::Imported : ImportOutcome::Updated;
     }
 
-    private function publish(SanitisedArticle $article, ItemState $state): PublishResult
+    private function publish(SanitisedArticle $article, ItemState $state, PublishTarget $target): PublishResult
     {
         try {
-            return $this->publisher->publish($article, $this->target, $state->pageID);
+            return $this->publisher->publish($article, $target, $state->pageID);
         } catch (PublishedPageMissingException) {
             // The page was deleted in Concrete since the last import: make a new one.
             $state->pageID = null;
 
-            return $this->publisher->publish($article, $this->target, null);
+            return $this->publisher->publish($article, $target, null);
         }
     }
 
@@ -149,13 +199,13 @@ final class ArticleImporter
     {
         $this->timings = ['fetch' => 0.0, 'parse' => 0.0, 'publish' => 0.0];
 
-        $state = $this->store->find($entry->slug);
+        $state = $this->store->find($entry->slug, $entry->hreflang);
 
         if ($state !== null && $state->isCurrentFor($entry)) {
             return ImportOutcome::Unchanged;
         }
 
-        $state ??= new ItemState($entry->slug, $entry->url);
+        $state ??= new ItemState($entry->slug, $entry->url, hreflang: $entry->hreflang);
         $state->url = $entry->url;
 
         try {

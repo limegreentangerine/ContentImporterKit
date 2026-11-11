@@ -13,7 +13,7 @@ use ClassKit\Entity\Core\UpdatedEntity;
  * @ORM\Entity
  * @ORM\Table(
  *      name="ciItems",
- *      uniqueConstraints={@ORM\UniqueConstraint(name="source_slug", columns={"source_id", "slug"})},
+ *      uniqueConstraints={@ORM\UniqueConstraint(name="source_slug", columns={"source_id", "hreflang", "slug"})},
  *      indexes={@ORM\Index(name="status", columns={"status"})},
  *      options={"comment": "Articles the content importer has seen, and what became of them"}
  * )
@@ -30,6 +30,11 @@ class ImportedItem extends UpdatedEntity
      * @ORM\Column(type="string", length=128, nullable=false, options={"comment": "Article slug"})
      */
     protected string $slug = '';
+
+    /**
+     * @ORM\Column(type="string", length=16, nullable=false, options={"comment": "Language of the article, empty for the source's own", "default": ""})
+     */
+    protected string $hreflang = '';
 
     /**
      * @ORM\Column(type="string", length=1024, nullable=false, options={"comment": "Address the article was fetched from"})
@@ -115,6 +120,26 @@ class ImportedItem extends UpdatedEntity
     public function setSlug(string $slug)
     {
         $this->slug = $slug;
+
+        return $this;
+    }
+
+    /**
+     * Get the value of hreflang
+     */
+    public function getHreflang(): string
+    {
+        return $this->hreflang;
+    }
+
+    /**
+     * Set the value of hreflang
+     *
+     * @return self
+     */
+    public function setHreflang(string $hreflang)
+    {
+        $this->hreflang = $hreflang;
 
         return $this;
     }

@@ -2,6 +2,19 @@
 
 Notable changes to this project are documented here.
 
+## 1.2.0 - unreleased
+
+Changes the items table (new `hreflang` column, and the unique key now includes it); run `c5:package:update`, then
+clear the cache. Existing items keep an empty language, which means the source's own.
+
+### Added
+
+- Articles in a source's other languages are imported under the parent page of that language, and each is linked
+  to the pages its translations already have, using Concrete's Multilingual relations. A translation that is not
+  imported yet is not waited for: it links itself when it arrives. A failed link is logged and does not fail the
+  article. The per-run limit counts each language of an article separately.
+- The Sources form checks that each language's parent page is inside that locale's section.
+
 ## 1.1.0 - unreleased
 
 Adds a column to the sources table (`locales`); run `c5:package:update`, then clear the cache. Nothing is imported

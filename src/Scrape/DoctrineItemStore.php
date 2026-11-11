@@ -18,21 +18,20 @@ final class DoctrineItemStore implements ItemStateStore
         private readonly ImportSource $source,
     ) {}
 
-    private function findItem(string $slug): ?ImportedItem
+    private function findItem(string $slug, ?string $hreflang): ?ImportedItem
     {
         $item = $this->entityManager->getRepository(ImportedItem::class)->findOneBy([
             'source' => $this->source,
+            'hreflang' => $hreflang ?? '',
             'slug' => $slug,
         ]);
 
         return $item instanceof ImportedItem ? $item : null;
     }
 
-    public function find(string $slug): ?ItemState
+    private function state(ImportedItem $item): ItemState
     {
-        $item = $this->findItem($slug);
-
-        return $item === null ? null : new ItemState(
+        return new ItemState(
             $item->getSlug(),
             $item->getUrl(),
             $item->getPageID(),
@@ -42,14 +41,33 @@ final class DoctrineItemStore implements ItemStateStore
             $item->getContentHash(),
             $item->getStatus(),
             $item->getError(),
+            $item->getHreflang() === '' ? null : $item->getHreflang(),
         );
+    }
+
+    public function find(string $slug, ?string $hreflang = null): ?ItemState
+    {
+        $item = $this->findItem($slug, $hreflang);
+
+        return $item === null ? null : $this->state($item);
+    }
+
+    public function findByUrl(string $url): ?ItemState
+    {
+        $item = $this->entityManager->getRepository(ImportedItem::class)->findOneBy([
+            'source' => $this->source,
+            'url' => $url,
+        ]);
+
+        return $item instanceof ImportedItem ? $this->state($item) : null;
     }
 
     public function save(ItemState $state): void
     {
-        $item = $this->findItem($state->slug) ?? new ImportedItem($this->source, $state->slug);
+        $item = $this->findItem($state->slug, $state->hreflang) ?? new ImportedItem($this->source, $state->slug);
 
         $item
+            ->setHreflang($state->hreflang ?? '')
             ->setUrl($state->url)
             ->setPageID($state->pageID)
             ->setEtag($state->etag)

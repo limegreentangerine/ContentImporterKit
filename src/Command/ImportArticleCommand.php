@@ -10,12 +10,44 @@ use Concrete\Core\Foundation\Command\Command;
  */
 class ImportArticleCommand extends Command
 {
+    /**
+     * Not constructor-promoted and with defaults, so a message queued before languages existed still unserialises.
+     */
+    protected ?string $hreflang = null;
+
+    /** @var list<string> */
+    protected array $alternates = [];
+
+    /**
+     * @param list<string> $alternates addresses of the article's translations
+     */
     public function __construct(
         protected int $sourceID,
         protected string $url,
         protected string $slug,
         protected ?string $lastModified,
-    ) {}
+        ?string $hreflang = null,
+        array $alternates = [],
+    ) {
+        $this->hreflang = $hreflang;
+        $this->alternates = $alternates;
+    }
+
+    /**
+     * The article's language, or null for the source's own.
+     */
+    public function getHreflang(): ?string
+    {
+        return $this->hreflang;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getAlternates(): array
+    {
+        return $this->alternates;
+    }
 
     public function getSourceID(): int
     {

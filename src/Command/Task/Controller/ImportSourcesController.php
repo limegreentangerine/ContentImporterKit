@@ -58,6 +58,8 @@ class ImportSourcesController extends AbstractController
                     $entry->url,
                     $entry->slug,
                     $entry->lastModified?->format(DATE_ATOM),
+                    $entry->hreflang,
+                    $entry->alternates,
                 ));
             }
 

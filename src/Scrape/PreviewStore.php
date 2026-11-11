@@ -15,21 +15,26 @@ final class PreviewStore implements ItemStateStore
 
     public function __construct(private readonly ItemStateStore $real) {}
 
-    public function find(string $slug): ?ItemState
+    public function find(string $slug, ?string $hreflang = null): ?ItemState
     {
-        return $this->real->find($slug);
+        return $this->real->find($slug, $hreflang);
+    }
+
+    public function findByUrl(string $url): ?ItemState
+    {
+        return $this->real->findByUrl($url);
     }
 
     public function save(ItemState $state): void
     {
-        $this->saved[$state->slug] = clone $state;
+        $this->saved[$state->key()] = clone $state;
     }
 
     /**
      * What the importer would have saved for this article.
      */
-    public function saved(string $slug): ?ItemState
+    public function saved(string $slug, ?string $hreflang = null): ?ItemState
     {
-        return $this->saved[$slug] ?? null;
+        return $this->saved[ItemState::keyOf($slug, $hreflang)] ?? null;
     }
 }

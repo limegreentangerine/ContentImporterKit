@@ -33,7 +33,7 @@ final class SourcePreview
         $rows = [];
         foreach ($checked as $entry) {
             $outcome = $this->importer->import($entry);
-            $error = $outcome === ImportOutcome::Failed ? $this->store->saved($entry->slug)?->error : null;
+            $error = $outcome === ImportOutcome::Failed ? $this->store->saved($entry->slug, $entry->hreflang)?->error : null;
             $rows[] = new PreviewRow($entry, $outcome, $error);
         }
 

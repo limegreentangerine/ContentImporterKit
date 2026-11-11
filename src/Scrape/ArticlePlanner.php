@@ -30,10 +30,8 @@ final class ArticlePlanner
 
         $candidates = [];
         $upToDate = 0;
-        // Only the source's own language is imported for now; other languages are counted so the run shows them.
-        $own = array_values(array_filter($sitemap->entries, static fn(SitemapEntry $entry): bool => $entry->hreflang === null));
-        foreach ($own as $entry) {
-            $state = $this->store->find($entry->slug);
+        foreach ($sitemap->entries as $entry) {
+            $state = $this->store->find($entry->slug, $entry->hreflang);
             if ($state !== null && $state->isCurrentFor($entry)) {
                 ++$upToDate;
 
@@ -50,6 +48,6 @@ final class ArticlePlanner
         $limit = $config->maxPerRun;
         $entries = $limit !== null ? array_slice($candidates, 0, $limit) : $candidates;
 
-        return new ArticlePlan($entries, $upToDate, count($sitemap->skipped), count($candidates) - count($entries), count($sitemap->entries) - count($own));
+        return new ArticlePlan($entries, $upToDate, count($sitemap->skipped), count($candidates) - count($entries));
     }
 }

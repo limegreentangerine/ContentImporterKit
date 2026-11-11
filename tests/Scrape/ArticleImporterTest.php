@@ -16,6 +16,7 @@ use PHPUnit\Framework\TestCase;
 use GuzzleHttp\Handler\MockHandler;
 use ContentImporterKit\Scrape\Fetcher;
 use ContentImporterKit\Import\Sanitiser;
+use ContentImporterKit\Scrape\ItemState;
 use ContentImporterKit\Security\UrlGuard;
 use ContentImporterKit\Scrape\SitemapEntry;
 use ContentImporterKit\Scrape\SourceConfig;
@@ -24,12 +25,17 @@ use ContentImporterKit\Scrape\ArticleParser;
 use ContentImporterKit\Scrape\ImportOutcome;
 use ContentImporterKit\Scrape\ArticleImporter;
 use ContentImporterKit\Tests\Scrape\Support\FakeStore;
+use ContentImporterKit\Tests\Scrape\Support\FakeLinker;
 use ContentImporterKit\Tests\Scrape\Support\FakeLogger;
 use ContentImporterKit\Tests\Scrape\Support\FakePublisher;
 
 final class ArticleImporterTest extends TestCase
 {
     private const URL = 'https://adferiad.org/cym/adferiad-yn-cyhoeddi-ymgyrch/';
+
+    private const ENGLISH_URL = 'https://adferiad.org/latest/campaign/';
+
+    private const LANGUAGES = ['locales' => 'en-gb | en_GB | 9 | https://adferiad.org/latest/'];
 
     /** @var list<array{request: Request, options: array<string, mixed>}> */
     private array $requests = [];
@@ -60,8 +66,9 @@ final class ArticleImporterTest extends TestCase
 
     /**
      * @param list<Response|\Throwable> $responses
+     * @param array<string, mixed>      $config    settings that replace those of the source
      */
-    private function importer(array $responses): ArticleImporter
+    private function importer(array $responses, array $config = [], ?FakeLinker $linker = null): ArticleImporter
     {
         $stack = HandlerStack::create(new MockHandler($responses));
         $stack->push(Middleware::history($this->requests));
@@ -73,7 +80,7 @@ final class ArticleImporterTest extends TestCase
             new Sanitiser(),
             $this->publisher,
             $this->store,
-            SourceConfig::fromArray([
+            SourceConfig::fromArray($config + [
                 'newsUrl' => 'https://adferiad.org/cym/',
                 'sitemapUrl' => 'https://adferiad.org/cym/post-sitemap.xml',
                 'titleSelector' => 'h1',
@@ -82,7 +89,13 @@ final class ArticleImporterTest extends TestCase
             ]),
             new PublishTarget(1, 'page', 'full', 'Main', ['banner' => 'thumbnail']),
             $this->logger,
+            $linker,
         );
+    }
+
+    private static function english(): SitemapEntry
+    {
+        return new SitemapEntry(self::ENGLISH_URL, 'campaign', new DateTimeImmutable('2025-03-14T16:11:16+00:00'), 'en-gb', [self::URL]);
     }
 
     public function testANewArticleIsImportedAndRemembered(): void
@@ -339,6 +352,89 @@ final class ArticleImporterTest extends TestCase
 
         self::assertSame(ImportOutcome::Failed, $outcome);
         self::assertCount(0, $this->requests);
+    }
+
+    public function testAnArticleInAnotherLanguageGoesUnderThatLanguagesParent(): void
+    {
+        $outcome = $this->importer([new Response(200, [], self::html())], self::LANGUAGES)->import(self::english());
+
+        self::assertSame(ImportOutcome::Imported, $outcome);
+        self::assertSame(9, $this->publisher->calls[0]['target']->parentPageID);
+        self::assertSame('Main', $this->publisher->calls[0]['target']->areaName, 'the rest of the target is the source\'s');
+
+        $state = $this->store->find('campaign', 'en-gb');
+        self::assertSame('en-gb', $state?->hreflang);
+        self::assertNull($this->store->find('campaign'), 'it is not remembered as the source\'s own language');
+    }
+
+    public function testTheOwnLanguageKeepsTheSourcesParent(): void
+    {
+        $this->importer([new Response(200, [], self::html())], self::LANGUAGES)->import(self::entry());
+
+        self::assertSame(1, $this->publisher->calls[0]['target']->parentPageID);
+    }
+
+    public function testALanguageTheSourceDoesNotHaveFailsOnlyThatArticle(): void
+    {
+        $entry = new SitemapEntry(self::ENGLISH_URL, 'campaign', null, 'fr');
+
+        $outcome = $this->importer([new Response(200, [], self::html())], self::LANGUAGES)->import($entry);
+
+        self::assertSame(ImportOutcome::Failed, $outcome);
+        self::assertSame([], $this->publisher->calls);
+        self::assertSame('The source has no language "fr".', $this->store->find('campaign', 'fr')?->error);
+    }
+
+    public function testAPageIsLinkedToTranslationsThatAreAlreadyImported(): void
+    {
+        $this->store->save(new ItemState('adferiad-yn-cyhoeddi-ymgyrch', self::URL, 55));
+        $linker = new FakeLinker();
+
+        $this->importer([new Response(200, [], self::html())], self::LANGUAGES, $linker)->import(self::english());
+
+        self::assertSame([['pageID' => 101, 'translations' => [55]]], $linker->calls);
+    }
+
+    public function testATranslationThatIsNotImportedYetIsNotWaitedFor(): void
+    {
+        $linker = new FakeLinker();
+
+        $outcome = $this->importer([new Response(200, [], self::html())], self::LANGUAGES, $linker)->import(self::english());
+
+        self::assertSame(ImportOutcome::Imported, $outcome);
+        self::assertSame([], $linker->calls);
+    }
+
+    public function testATranslationWithoutAPageYetIsNotLinked(): void
+    {
+        $this->store->save(new ItemState('adferiad-yn-cyhoeddi-ymgyrch', self::URL, null, status: 'failed'));
+        $linker = new FakeLinker();
+
+        $this->importer([new Response(200, [], self::html())], self::LANGUAGES, $linker)->import(self::english());
+
+        self::assertSame([], $linker->calls);
+    }
+
+    public function testALinkThatFailsDoesNotFailTheArticle(): void
+    {
+        $this->store->save(new ItemState('adferiad-yn-cyhoeddi-ymgyrch', self::URL, 55));
+        $linker = new FakeLinker();
+        $linker->fail = true;
+
+        $outcome = $this->importer([new Response(200, [], self::html())], self::LANGUAGES, $linker)->import(self::english());
+
+        self::assertSame(ImportOutcome::Imported, $outcome);
+        self::assertSame('imported', $this->store->find('campaign', 'en-gb')?->status);
+        self::assertStringContainsString('not linked', $this->logger->lines[0]);
+    }
+
+    public function testNothingIsLinkedWithoutAlternates(): void
+    {
+        $linker = new FakeLinker();
+
+        $this->importer([new Response(200, [], self::html())], [], $linker)->import(self::entry());
+
+        self::assertSame([], $linker->calls);
     }
 
     protected function setUp(): void

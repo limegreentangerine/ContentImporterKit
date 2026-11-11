@@ -29,7 +29,7 @@ class ImportArticleCommandHandler
             return;
         }
 
-        $entry = new SitemapEntry($command->getUrl(), $command->getSlug(), $this->date($command->getLastModified()));
+        $entry = new SitemapEntry($command->getUrl(), $command->getSlug(), $this->date($command->getLastModified()), $command->getHreflang(), $command->getAlternates());
         $importer = $factory->importer($source);
         $outcome = $importer->import($entry);
 

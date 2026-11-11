@@ -189,17 +189,19 @@ final class ArticlePlannerTest extends TestCase
         $this->planner(new Response(200, [], '<html><body>Not a sitemap</body></html>'))->plan(self::config(), new DateTimeImmutable(self::NOW));
     }
 
-    public function testOtherLanguagesAreCountedButNotPlanned(): void
+    public function testEachLanguageOfAnArticleIsPlannedAndRemembered(): void
     {
+        $this->store->save(new ItemState('one', 'https://adferiad.org/cym/one/', 10, null, null, new DateTimeImmutable('2025-03-01T00:00:00+00:00'), 'h', 'imported'));
         $xml = '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
-            . '<url><loc>https://adferiad.org/cym/one/</loc></url>'
+            . '<url><loc>https://adferiad.org/cym/one/</loc><lastmod>2025-03-01T00:00:00+00:00</lastmod></url>'
             . '<url><loc>https://adferiad.org/en/one/</loc></url>'
             . '<url><loc>https://adferiad.org/en/two/</loc></url></urlset>';
 
         $plan = $this->planner(new Response(200, [], $xml))->plan(self::config(['locales' => 'en-gb | en_GB | 5 | https://adferiad.org/en/']), new DateTimeImmutable(self::NOW));
 
-        self::assertSame(['one'], self::slugs($plan->entries));
-        self::assertSame(2, $plan->otherLanguages);
+        self::assertSame(['one', 'two'], self::slugs($plan->entries), 'the Welsh one is up to date; the English "one" is another article');
+        self::assertSame('en-gb', $plan->entries[0]->hreflang);
+        self::assertSame(1, $plan->upToDate);
     }
 
     protected function setUp(): void

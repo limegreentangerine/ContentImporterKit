@@ -10,7 +10,6 @@ use Psr\Log\LoggerInterface;
 use GuzzleHttp\ClientInterface;
 use Concrete\Core\File\Importer;
 use ContentImporterKit\Import\Sanitiser;
-use ContentImporterKit\Import\PreviewPublisher;
 use Doctrine\ORM\EntityManagerInterface;
 use ContentImporterKit\Security\UrlGuard;
 use Concrete\Core\Application\Application;
@@ -19,7 +18,9 @@ use ContentImporterKit\Log\ImporterLogger;
 use ContentImporterKit\Page\ImageImporter;
 use ContentImporterKit\Entity\ImportSource;
 use ContentImporterKit\Page\ConcreteImageSink;
+use ContentImporterKit\Import\PreviewPublisher;
 use ContentImporterKit\Page\ConcretePagePublisher;
+use ContentImporterKit\Page\ConcreteTranslationLinker;
 
 /**
  * Builds the importer and its helpers from Concrete's services. It is the one place that knows how the pieces fit
@@ -90,6 +91,7 @@ final class ArticleImporterFactory
             $source->toSourceConfig(),
             $source->toPublishTarget(),
             $this->logger(),
+            new ConcreteTranslationLinker($this->logger()),
         );
     }
 
