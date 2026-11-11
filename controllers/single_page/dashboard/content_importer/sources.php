@@ -13,8 +13,8 @@ use ContentImporterKit\Entity\ImportedItem;
 use ContentImporterKit\Entity\ImportSource;
 use ContentImporterKit\Scrape\FetchException;
 use ContentImporterKit\Scrape\ScrapeException;
-use ContentImporterKit\Scrape\InvalidSourceException;
 use ContentImporterKit\Scrape\ArticleImporterFactory;
+use ContentImporterKit\Scrape\InvalidSourceException;
 use Concrete\Core\Page\Controller\DashboardPageController;
 
 class Sources extends DashboardPageController
@@ -65,6 +65,7 @@ class Sources extends DashboardPageController
             ->setSinceDays($number('sinceDays'))
             ->setMaxPerRun($number('maxPerRun'))
             ->setExcludedSlugs($text('excludedSlugs') === '' ? null : trim((string) $post->get('excludedSlugs')))
+            ->setLocales($text('locales') === '' ? null : trim((string) $post->get('locales')))
             ->setParentPageID((int) $post->get('parentPageID', 0))
             ->setPageTypeHandle($text('pageTypeHandle'))
             ->setPageTemplateHandle($text('pageTemplateHandle'))
@@ -79,8 +80,9 @@ class Sources extends DashboardPageController
             $this->error->add(t('Please give the source a name of up to 255 characters.'));
         }
 
+        $locales = [];
         try {
-            $source->toSourceConfig();
+            $locales = $source->toSourceConfig()->locales;
         } catch (InvalidSourceException $e) {
             $this->error->add($e->getMessage());
         }
@@ -99,6 +101,13 @@ class Sources extends DashboardPageController
         // source up must be allowed to add these pages themselves. This is the same check the file import makes.
         if ($parentExists && is_object($pageType) && !(new Permissions($parent))->canAddSubCollection($pageType)) {
             $this->error->add(t('You do not have permission to add pages of this type under that page.'));
+        }
+        // Every language's parent is checked the same way, for the same reason.
+        foreach ($locales as $locale) {
+            $localeParent = Page::getByID($locale->parentPageID);
+            if ($localeParent->isError() || !is_object($pageType) || !(new Permissions($localeParent))->canAddSubCollection($pageType)) {
+                $this->error->add(t('The page for "%s" does not exist, or you do not have permission to add pages of this type under it.', $locale->hreflang));
+            }
         }
         if (!is_object(PageTemplate::getByHandle($source->getPageTemplateHandle()))) {
             $this->error->add(t('Please choose a page template.'));

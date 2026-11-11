@@ -28,6 +28,17 @@ final class SourceConfigTest extends TestCase
         ];
     }
 
+    private static function withLocales(mixed $locales): SourceConfig
+    {
+        return SourceConfig::fromArray([
+            'newsUrl' => 'https://adferiad.org/cym/',
+            'sitemapUrl' => 'https://adferiad.org/sitemap.xml',
+            'titleSelector' => 'h1',
+            'articleSelector' => '.body',
+            'locales' => $locales,
+        ]);
+    }
+
     public function testTheAdferiadSettingsAreValid(): void
     {
         $config = SourceConfig::fromArray(self::raw());
@@ -194,5 +205,49 @@ final class SourceConfigTest extends TestCase
             self::assertStringContainsString('newsUrl', $e->getMessage());
             self::assertStringNotContainsString('script', $e->getMessage());
         }
+    }
+
+    public function testLanguagesAreReadOnePerLine(): void
+    {
+        $config = self::withLocales("EN-GB | en_GB | 5 | https://adferiad.org/latest\n\nfr | fr_FR | 6 | https://adferiad.org/fr/");
+
+        self::assertCount(2, $config->locales);
+        self::assertSame('en-gb', $config->locales[0]->hreflang);
+        self::assertSame('en_GB', $config->locales[0]->locale);
+        self::assertSame(5, $config->locales[0]->parentPageID);
+        self::assertSame('https://adferiad.org/latest/', $config->locales[0]->newsUrl, 'a slash is added');
+        self::assertSame(['https://adferiad.org/cym/' => null, 'https://adferiad.org/latest/' => 'en-gb', 'https://adferiad.org/fr/' => 'fr'], $config->newsUrls());
+    }
+
+    public function testNoLanguagesIsASingleLanguageSource(): void
+    {
+        self::assertSame([], self::withLocales(null)->locales);
+        self::assertSame([], self::withLocales('')->locales);
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function badLocales(): array
+    {
+        return [
+            'missing part' => ['en-gb | en_GB | 5'],
+            'bad language' => ['English | en_GB | 5 | https://adferiad.org/latest/'],
+            'bad locale' => ['en-gb | en-gb | 5 | https://adferiad.org/latest/'],
+            'bad page' => ['en-gb | en_GB | 0 | https://adferiad.org/latest/'],
+            'other host' => ['en-gb | en_GB | 5 | https://evil.example/latest/'],
+            'not a url' => ['en-gb | en_GB | 5 | ftp://adferiad.org/latest/'],
+            'the main news url' => ['en-gb | en_GB | 5 | https://adferiad.org/cym/'],
+            'repeated language' => ["en-gb | en_GB | 5 | https://adferiad.org/a/\nen-gb | en_GB | 5 | https://adferiad.org/b/"],
+            'repeated address' => ["en-gb | en_GB | 5 | https://adferiad.org/a/\nfr | fr_FR | 6 | https://adferiad.org/a/"],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('badLocales')]
+    public function testABadLanguageIsRejected(string $line): void
+    {
+        $this->expectException(InvalidSourceException::class);
+
+        self::withLocales($line);
     }
 }

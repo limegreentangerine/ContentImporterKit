@@ -2,6 +2,16 @@
 
 Notable changes to this project are documented here.
 
+## 1.1.0 - unreleased
+
+Adds a column to the sources table (`locales`); run `c5:package:update`, then clear the cache. Nothing is imported
+in other languages yet: this is the groundwork.
+
+### Added
+
+- Sources can list other languages (hreflang, Concrete locale, parent page, news URL). The sitemap reader finds each
+  article's language and its `xhtml:link` alternates, and a run counts the other-language articles it found.
+
 ## 1.0.0 - 2026-10-21
 
 First stable release. Upgrading from 0.2.0 needs no database changes; clear the

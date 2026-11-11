@@ -189,6 +189,19 @@ final class ArticlePlannerTest extends TestCase
         $this->planner(new Response(200, [], '<html><body>Not a sitemap</body></html>'))->plan(self::config(), new DateTimeImmutable(self::NOW));
     }
 
+    public function testOtherLanguagesAreCountedButNotPlanned(): void
+    {
+        $xml = '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+            . '<url><loc>https://adferiad.org/cym/one/</loc></url>'
+            . '<url><loc>https://adferiad.org/en/one/</loc></url>'
+            . '<url><loc>https://adferiad.org/en/two/</loc></url></urlset>';
+
+        $plan = $this->planner(new Response(200, [], $xml))->plan(self::config(['locales' => 'en-gb | en_GB | 5 | https://adferiad.org/en/']), new DateTimeImmutable(self::NOW));
+
+        self::assertSame(['one'], self::slugs($plan->entries));
+        self::assertSame(2, $plan->otherLanguages);
+    }
+
     protected function setUp(): void
     {
         $this->store = new FakeStore();

@@ -14,9 +14,12 @@ final readonly class SourceConfig
 {
     private const MAX_EXCLUDED = 200;
 
+    private const MAX_LOCALES = 20;
+
     /**
-     * @param list<string> $excludedSlugs article slugs the source ignores; "*" matches any run of letters, numbers
-     *                                    and hyphens
+     * @param list<string>       $excludedSlugs article slugs the source ignores; "*" matches any run of letters, numbers
+     *                                          and hyphens
+     * @param list<LocaleConfig> $locales       the other languages of the source; empty for a single-language source
      */
     public function __construct(
         public string $newsUrl,
@@ -27,6 +30,7 @@ final readonly class SourceConfig
         public ?int $sinceDays,
         public ?int $maxPerRun = null,
         public array $excludedSlugs = [],
+        public array $locales = [],
     ) {}
 
     /**
@@ -64,6 +68,69 @@ final readonly class SourceConfig
         }
 
         return array_keys($slugs);
+    }
+
+    /**
+     * One language per line: "hreflang | Concrete locale | parent page ID | news URL".
+     *
+     * @return list<LocaleConfig>
+     *
+     * @throws InvalidSourceException
+     */
+    private static function locales(mixed $value, string $primaryNewsUrl): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+        $lines = is_string($value) ? preg_split('/\R/', $value) : $value;
+        if (!is_array($lines)) {
+            throw new InvalidSourceException('"locales" must be a list.');
+        }
+
+        $locales = [];
+        $newsUrls = [$primaryNewsUrl => true];
+        foreach ($lines as $line) {
+            if (!is_string($line)) {
+                throw new InvalidSourceException('"locales" must be a list of text.');
+            }
+            if (trim($line) === '') {
+                continue;
+            }
+
+            $parts = array_map('trim', explode('|', $line));
+            if (count($parts) !== 4) {
+                throw new InvalidSourceException(sprintf('"%s" is not a language. Write: language | locale | parent page ID | news URL.', trim($line)));
+            }
+            [$hreflang, $locale, $parentPageID, $newsUrl] = $parts;
+
+            $hreflang = strtolower($hreflang);
+            if (preg_match('/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/', $hreflang) !== 1) {
+                throw new InvalidSourceException(sprintf('"%s" is not a language code such as "en-gb".', $hreflang));
+            }
+            if (preg_match('/^[a-z]{2,3}_[A-Z]{2}$/', $locale) !== 1) {
+                throw new InvalidSourceException(sprintf('"%s" is not a locale such as "en_GB".', $locale));
+            }
+            if (preg_match('/^[1-9]\d{0,9}$/', $parentPageID) !== 1) {
+                throw new InvalidSourceException(sprintf('The parent page ID of "%s" must be a whole number.', $hreflang));
+            }
+            $newsUrl = self::url(['newsUrl' => $newsUrl], 'newsUrl');
+            $newsUrl = str_ends_with($newsUrl, '/') ? $newsUrl : $newsUrl . '/';
+            if (self::host($newsUrl) !== self::host($primaryNewsUrl)) {
+                throw new InvalidSourceException(sprintf('The news URL of "%s" must be on the same host as "newsUrl".', $hreflang));
+            }
+            // Two languages at one address could not be told apart.
+            if (isset($newsUrls[$newsUrl]) || isset($locales[$hreflang])) {
+                throw new InvalidSourceException(sprintf('"%s" repeats a language or a news URL.', $hreflang));
+            }
+
+            $newsUrls[$newsUrl] = true;
+            $locales[$hreflang] = new LocaleConfig($hreflang, $locale, (int) $parentPageID, $newsUrl);
+        }
+        if (count($locales) > self::MAX_LOCALES) {
+            throw new InvalidSourceException('"locales" has too many entries.');
+        }
+
+        return array_values($locales);
     }
 
     /**
@@ -158,6 +225,22 @@ final readonly class SourceConfig
     }
 
     /**
+     * Every URL articles may be under, with its language: the news URL (null, the source's own language) and those of
+     * the other languages.
+     *
+     * @return array<string, string|null> news URL => hreflang
+     */
+    public function newsUrls(): array
+    {
+        $urls = [$this->newsUrl => null];
+        foreach ($this->locales as $locale) {
+            $urls[$locale->newsUrl] = $locale->hreflang;
+        }
+
+        return $urls;
+    }
+
+    /**
      * @param array<string, mixed> $raw keys: newsUrl, sitemapUrl, titleSelector, articleSelector, bannerSelector, sinceDays
      *
      * @throws InvalidSourceException
@@ -185,6 +268,7 @@ final readonly class SourceConfig
             self::optionalInt($raw, 'sinceDays', 1, 3650),
             self::optionalInt($raw, 'maxPerRun', 1, 1000),
             self::excludedSlugs($raw['excludedSlugs'] ?? null),
+            self::locales($raw['locales'] ?? null, $newsUrl),
         );
     }
 }

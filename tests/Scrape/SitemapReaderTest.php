@@ -39,6 +39,31 @@ final class SitemapReaderTest extends TestCase
         return array_map(static fn(SitemapEntry $entry): string => $entry->slug, $entries);
     }
 
+    private static function multilingual(): SourceConfig
+    {
+        return SourceConfig::fromArray([
+            'newsUrl' => 'https://adferiad.org/cym/diweddaraf/',
+            'sitemapUrl' => 'https://adferiad.org/post-sitemap.xml',
+            'titleSelector' => 'h1',
+            'articleSelector' => '.two_thirds',
+            'locales' => 'en-gb | en_GB | 5 | https://adferiad.org/latest/',
+        ]);
+    }
+
+    private static function sitemapWithAlternates(): string
+    {
+        return '<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">'
+            . '<url><loc>https://adferiad.org/cym/diweddaraf/ymgyrch/</loc>'
+            . '<xhtml:link rel="alternate" hreflang="cy-gb" href="https://adferiad.org/cym/diweddaraf/ymgyrch/"/>'
+            . '<xhtml:link rel="alternate" hreflang="en-gb" href="https://adferiad.org/latest/campaign/"/>'
+            . '<xhtml:link rel="alternate" hreflang="fr" href="https://evil.example/fr/campagne/"/></url>'
+            . '<url><loc>https://adferiad.org/latest/campaign/</loc>'
+            . '<xhtml:link rel="alternate" hreflang="cy-gb" href="https://adferiad.org/cym/diweddaraf/ymgyrch/"/></url>'
+            . '<url><loc>https://adferiad.org/latest/</loc></url>'
+            . '<url><loc>https://adferiad.org/latest/lonely</loc></url>'
+            . '</urlset>';
+    }
+
     public function testArticlesAreFoundAndEverythingElseIsLeftOutWithAReason(): void
     {
         $result = (new SitemapReader())->read(self::fixture(), self::config());
@@ -173,5 +198,49 @@ final class SitemapReaderTest extends TestCase
         $xml = '<?xml version="1.0"?><urlset><url><loc>https://adferiad.org/cym/plain-post</loc></url></urlset>';
 
         self::assertSame(['plain-post'], self::slugs((new SitemapReader())->read($xml, self::config())->entries));
+    }
+
+    public function testEachArticleKnowsItsLanguageAndItsTranslations(): void
+    {
+        $result = (new SitemapReader())->read(self::sitemapWithAlternates(), self::multilingual());
+
+        [$welsh, $english, $lonely] = $result->entries;
+        self::assertSame(['ymgyrch', 'campaign', 'lonely'], self::slugs($result->entries));
+        self::assertNull($welsh->hreflang, 'the source\'s own language');
+        self::assertSame('en-gb', $english->hreflang);
+        self::assertSame(['https://adferiad.org/latest/campaign/'], $welsh->alternates, 'itself and the off-site address are not translations');
+        self::assertSame(['https://adferiad.org/cym/diweddaraf/ymgyrch/'], $english->alternates);
+        self::assertSame([], $lonely->alternates);
+        self::assertArrayHasKey('https://adferiad.org/latest/', $result->skipped, 'every language has an index page');
+    }
+
+    public function testTheSameSlugInTwoLanguagesIsTwoArticles(): void
+    {
+        $xml = '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+            . '<url><loc>https://adferiad.org/cym/diweddaraf/covid</loc></url>'
+            . '<url><loc>https://adferiad.org/latest/covid</loc></url>'
+            . '<url><loc>https://adferiad.org/latest/covid/</loc></url></urlset>';
+
+        $result = (new SitemapReader())->read($xml, self::multilingual());
+
+        self::assertCount(2, $result->entries);
+        self::assertSame('Another URL in the sitemap has the same slug.', $result->skipped['https://adferiad.org/latest/covid/']);
+    }
+
+    public function testASourceWithoutLanguagesIgnoresOtherLanguagesAndAlternates(): void
+    {
+        $config = SourceConfig::fromArray([
+            'newsUrl' => 'https://adferiad.org/cym/diweddaraf/',
+            'sitemapUrl' => 'https://adferiad.org/post-sitemap.xml',
+            'titleSelector' => 'h1',
+            'articleSelector' => '.two_thirds',
+        ]);
+
+        $result = (new SitemapReader())->read(self::sitemapWithAlternates(), $config);
+
+        self::assertSame(['ymgyrch'], self::slugs($result->entries));
+        self::assertNull($result->entries[0]->hreflang);
+        self::assertSame([], $result->entries[0]->alternates);
+        self::assertArrayHasKey('https://adferiad.org/latest/campaign/', $result->skipped);
     }
 }

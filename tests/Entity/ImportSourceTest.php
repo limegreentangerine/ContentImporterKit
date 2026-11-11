@@ -125,4 +125,12 @@ final class ImportSourceTest extends TestCase
         self::assertSame([], self::source()->setBannerAttribute(null)->toPublishTarget()->attributeMap);
         self::assertSame([], self::source()->setBannerAttribute('')->toPublishTarget()->attributeMap);
     }
+
+    public function testTheLanguagesReachTheSourceConfig(): void
+    {
+        $config = self::source()->setLocales('en-gb | en_GB | 5 | https://adferiad.org/latest/')->toSourceConfig();
+
+        self::assertSame('en-gb', $config->locales[0]->hreflang);
+        self::assertSame([], self::source()->toSourceConfig()->locales);
+    }
 }

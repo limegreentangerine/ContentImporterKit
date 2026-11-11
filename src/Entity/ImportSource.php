@@ -90,6 +90,11 @@ class ImportSource extends UpdatedEntity
     protected ?string $excludedSlugs = null;
 
     /**
+     * @ORM\Column(type="text", nullable=true, options={"comment": "Other languages, one per line: hreflang | locale | parent page ID | news URL"})
+     */
+    protected ?string $locales = null;
+
+    /**
      * @ORM\Column(type="integer", nullable=false, options={"comment": "Imported by the scheduled task", "default": 1})
      */
     protected int $enabled = 1;
@@ -118,6 +123,7 @@ class ImportSource extends UpdatedEntity
             'sinceDays' => $this->sinceDays,
             'maxPerRun' => $this->maxPerRun,
             'excludedSlugs' => $this->excludedSlugs,
+            'locales' => $this->locales,
         ]);
     }
 
@@ -391,6 +397,26 @@ class ImportSource extends UpdatedEntity
     public function setBannerAttribute(?string $bannerAttribute)
     {
         $this->bannerAttribute = $bannerAttribute;
+
+        return $this;
+    }
+
+    /**
+     * Get the value of locales
+     */
+    public function getLocales(): ?string
+    {
+        return $this->locales;
+    }
+
+    /**
+     * Set the value of locales
+     *
+     * @return self
+     */
+    public function setLocales(?string $locales)
+    {
+        $this->locales = $locales;
 
         return $this;
     }

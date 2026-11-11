@@ -31,6 +31,47 @@ final class SitemapReader
         return '';
     }
 
+    /**
+     * The news URL an address is under: the longest one, so a language nested inside another is told apart.
+     *
+     * @param array<string, string|null> $newsUrls
+     */
+    private function newsUrlOf(string $loc, array $newsUrls): ?string
+    {
+        $found = null;
+        foreach (array_keys($newsUrls) as $newsUrl) {
+            if (str_starts_with($loc, $newsUrl) && ($found === null || strlen($newsUrl) > strlen($found))) {
+                $found = $newsUrl;
+            }
+        }
+
+        return $found;
+    }
+
+    /**
+     * The other-language versions a <url> lists as <xhtml:link rel="alternate" href="...">. Only addresses under one of
+     * the source's news URLs are kept: the sitemap is not trusted, and these are only ever compared, never fetched.
+     *
+     * @param array<string, string|null> $newsUrls
+     *
+     * @return list<string>
+     */
+    private function alternates(DOMElement $node, string $loc, array $newsUrls): array
+    {
+        $found = [];
+        foreach ($node->childNodes as $child) {
+            if (!($child instanceof DOMElement) || $child->localName !== 'link' || strtolower($child->getAttribute('rel')) !== 'alternate') {
+                continue;
+            }
+            $href = trim($child->getAttribute('href'));
+            if ($href !== $loc && $href !== '' && !isset($newsUrls[$href]) && $this->newsUrlOf($href, $newsUrls) !== null) {
+                $found[$href] = true;
+            }
+        }
+
+        return array_map('strval', array_keys($found));
+    }
+
     private function slugFor(string $loc, string $newsUrl): ?string
     {
         $rest = substr($loc, strlen($newsUrl));
@@ -94,7 +135,7 @@ final class SitemapReader
             throw new ScrapeException('The sitemap contains too many URLs.');
         }
 
-        $newsHost = strtolower((string) parse_url($config->newsUrl, PHP_URL_HOST));
+        $newsUrls = $config->newsUrls();
         $entries = [];
         $skipped = [];
         $seen = [];
@@ -105,21 +146,22 @@ final class SitemapReader
                 continue;
             }
 
-            if ($loc === $config->newsUrl) {
+            if (isset($newsUrls[$loc])) {
                 $skipped[$loc] = 'This is the news index page, not an article.';
 
                 continue;
             }
+            $newsUrl = $this->newsUrlOf($loc, $newsUrls);
             if (
-                !str_starts_with($loc, $config->newsUrl)
-                || strtolower((string) parse_url($loc, PHP_URL_HOST)) !== $newsHost
+                $newsUrl === null
+                || strtolower((string) parse_url($loc, PHP_URL_HOST)) !== strtolower((string) parse_url($newsUrl, PHP_URL_HOST))
             ) {
                 $skipped[$loc] = 'The URL is not under the news URL.';
 
                 continue;
             }
 
-            $slug = $this->slugFor($loc, $config->newsUrl);
+            $slug = $this->slugFor($loc, $newsUrl);
             if ($slug === null) {
                 $skipped[$loc] = 'The URL does not end in a usable slug.';
 
@@ -130,7 +172,10 @@ final class SitemapReader
 
                 continue;
             }
-            if (isset($seen[$slug])) {
+            $hreflang = $newsUrls[$newsUrl];
+            // The same slug in two languages is two articles.
+            $key = ($hreflang ?? '') . '|' . $slug;
+            if (isset($seen[$key])) {
                 $skipped[$loc] = 'Another URL in the sitemap has the same slug.';
 
                 continue;
@@ -143,8 +188,9 @@ final class SitemapReader
                 continue;
             }
 
-            $seen[$slug] = true;
-            $entries[] = new SitemapEntry($loc, $slug, $lastModified);
+            $seen[$key] = true;
+            $alternates = $config->locales === [] ? [] : $this->alternates($node, $loc, $newsUrls);
+            $entries[] = new SitemapEntry($loc, $slug, $lastModified, $hreflang, $alternates);
         }
 
         return new SitemapResult($entries, $skipped);

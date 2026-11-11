@@ -73,6 +73,12 @@ if (isset($source)) {
                 <?php echo $form->textarea('excludedSlugs', (string) $source->getExcludedSlugs(), ['rows' => 4, 'placeholder' => "blog\ncategory-*"]); ?>
                 <div class="help-block"><?php echo t('A sitemap often lists pages that are not articles, such as a news index or a category. Give the last part of their address, one per line. * matches any run of letters, numbers and hyphens, for example category-*.'); ?></div>
             </div>
+
+            <div class="form-group">
+                <?php echo $form->label('locales', t('Other languages (optional)')); ?>
+                <?php echo $form->textarea('locales', (string) $source->getLocales(), ['rows' => 3, 'placeholder' => 'en-gb | en_GB | 123 | https://example.org/latest/']); ?>
+                <div class="help-block"><?php echo t('For a site with the same articles in several languages. One language per line: the language code the sitemap uses, the Concrete locale, the ID of the page its articles go under, and the news address of that language. The settings above are for the main language. Other languages are found but not imported yet.'); ?></div>
+            </div>
         </fieldset>
 
         <fieldset>
